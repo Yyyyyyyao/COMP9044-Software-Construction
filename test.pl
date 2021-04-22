@@ -2,3 +2,5 @@
 
 
 print("yes\n");
+
+print("no\n");
