@@ -17,6 +17,7 @@ sub get_command_type{
     return $command;
 }
 
+# Check if the command include -n flag
 $command_n = 0;
 $argument_count = scalar(@ARGV);
 if ($argument_count == 1){
