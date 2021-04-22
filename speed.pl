@@ -66,7 +66,8 @@ sub is_matched{
         if ($line_content =~ /$regx_to_match/){
             return 1;
         }
-    }elsif ($command_argv =~ /^(\d)+(${command})?/){
+    }elsif ($command_argv =~ /^(\d+)(${command})?/){
+        
         if ($current_line_number == $1){
             return 1;
         }
