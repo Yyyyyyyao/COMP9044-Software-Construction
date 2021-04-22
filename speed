@@ -28,6 +28,7 @@ if ($argument_count == 1){
 }
 $command_type = get_command_type($command_content);
 
+# function to check if it is in range
 sub is_range{
 
     my $command = $_[0];
