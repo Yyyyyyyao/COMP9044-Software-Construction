@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+# get Command type:
+# q,p,d,s
 sub get_command_type{
     my $command_argv = $_[0];
     my $command = '';
