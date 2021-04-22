@@ -38,6 +38,8 @@ sub is_range{
     return 0;
 }
 
+
+# function to extract range
 sub extract_range{
 
     my $command = $_[0];
