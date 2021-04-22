@@ -113,7 +113,7 @@ while ($line = <STDIN>){
             
             # noted:
             # for the print command, we find the longest pair
-            # which is a greedy search
+            # which is a non-greedy search
             if (is_matched($command_type, $start, $line, $.)){ 
                 # if the line matches the start address, 
                 # we turn on the trigger
@@ -123,8 +123,11 @@ while ($line = <STDIN>){
             }elsif (is_matched($command_type, $end, $line, $.)){
                 # if the line matches the start address 
                 # we put the line in
-                $trigger = 0;
-                push @output, $line;
+                if ($trigger == 1){
+                    $trigger = 0;
+                    push @output, $line;
+                }
+                
                 
             }
 
@@ -180,13 +183,50 @@ while ($line = <STDIN>){
         }
         
     }elsif ($command_type eq 's'){
-        if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
-            $address_part = $1;
-            $replace_part = $2;
-            if ($address_part eq ''){
-                $line = get_subs_parts($replace_part, $line);
-            }elsif (is_matched($command_type, $address_part, $line, $.)){
-                $line = get_subs_parts($replace_part, $line);
+
+        if(is_range($command_type, $command_content)){
+            @ranges = extract_range($command_type, $command_content);
+            $start = shift @ranges;
+            $end = shift @ranges;
+            
+            # noted: for s command
+            # the range address is a non-greedy search
+            if (is_matched($command_type, $start, $line, $.)){
+                # turn the trigger on if the line matches the start address
+                print("yes linenumber: $. from $start to $end \n");
+                if ($trigger == 0){
+                    $trigger = 1;
+                }
+            }elsif (is_matched($command_type, $end, $line, $.)){
+                # when it find the line matches with the end address
+                # we replace this line
+                if ($trigger == 1){
+                    $trigger = 0;
+                    if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+                        $replace_part = $2;
+                        $line = get_subs_parts($replace_part, $line);
+                    }
+                }
+                
+            }
+
+            # the trigger is one
+            # we need to replace all the lines in between
+            if ($trigger == 1){
+                if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+                    $replace_part = $2;
+                    $line = get_subs_parts($replace_part, $line);
+                }
+            }
+        }else{
+            if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+                $address_part = $1;
+                $replace_part = $2;
+                if ($address_part eq ''){
+                    $line = get_subs_parts($replace_part, $line);
+                }elsif (is_matched($command_type, $address_part, $line, $.)){
+                    $line = get_subs_parts($replace_part, $line);
+                }
             }
         }
     }
