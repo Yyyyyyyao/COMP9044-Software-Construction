@@ -1,0 +1,232 @@
+#!/usr/bin/perl -w
+
+$argc = scalar(@ARGV);
+dash_n_flag = 0;
+if ($argc == 2){
+
+    if ($ARGV[1] eq '-n'){
+        dash_n_flag = 1;
+    }
+    $option = $ARGV[1];
+    @option_split = split("", $option);
+
+}elsif ($argc == 1){
+
+    $option = shift @ARGV;
+    @option_split = split("", $option);
+
+}else{
+    print("Error: no arguments\n");
+}
+
+# try match   command =~ /s\/1\/-\//; match s///
+$count_slashes = 0;
+foreach $char (@option_split){
+    if ($char eq '/'){
+        $count_slashes ++;
+    }
+}
+
+$line_to_subs = -1;
+if ($count_slashes >= 3){
+    $command = 's';
+    $reg_flag{$command} = 0;
+    $regx{$command} = '.*';
+
+    @subs_splited = split("s", $option);
+    if ($subs_splited[0] ne ''){
+        if (index($subs_splited[0], '/') != -1){
+            @reg_chars = split("/", $subs_splited[0]);
+            $regx{$command} = $reg_chars[1];
+            $reg_flag{$command} = 1;
+        }else{
+            $line_to_subs = $subs_splited[0]
+        }
+    }
+}else{
+    $command = $option_split[-1];
+    $reg_flag{$command} = 0;
+    $regx{$command} = '.*';
+}
+
+$quit_counter_flag = 0;
+$print_flag = 0;
+$line_to_print = -1;
+$delete_flag = 0;
+$line_to_delete = -1;
+$counter = 1;
+$to_replace = '';
+$replace_with = '';
+$subs_g_flag = 0;
+$subs_flag = 0;
+
+if ($command eq 'q'){
+    # to deal with the case that 
+    # there is only q at there
+    if ($option eq 'q'){ # quit command
+        $operation = 1;
+    }else{
+        @option_chars = split("q", $option);
+        $operation = $option_chars[0];
+            if (index($operation, '/') != -1){ # if it is the case including regx /.1/q
+            $reg_flag{$command} = 1;
+            @reg_chars = split("/", $option);
+            $regx{$command} = $reg_chars[1];
+        }else{ # if it is the case not having regx 3q
+            $quit_counter_flag = 1;
+            $counter = $operation;
+        }
+    }
+    
+} elsif ($command eq 'p'){ # print command
+    # to deal with the case that 
+    # there is only p at there
+    if ($option eq 'p'){
+        $print_flag = 1;
+    }else{
+        @option_chars = split("p", $option);
+        $operation = $option_chars[0];
+        if (index($operation, '/') != -1){ # if it is the case including regx /.1/q
+            $reg_flag{$command} = 1;
+            @reg_chars = split("/", $option);
+            $regx{$command} = $reg_chars[1];
+        }else{ # if it is the case not having regx 3q
+            $print_flag = 1;
+            $line_to_print = $operation;
+        }
+    }
+    
+
+} elsif ($command eq 'd'){ # delete command
+    # to deal with the case that 
+    # there is only q at there
+    if ($option eq 'd'){
+        $delete_flag = 1;
+    }else{
+        @option_chars = split("d", $option);
+        $operation = $option_chars[0];
+        if (index($operation, '/') != -1){ # if it is the case including regx /.1/q
+            $subs_g_flag = 1;
+            @reg_chars = split("/", $option);
+            $regx{$command} = $reg_chars[1];
+        }else{ # if it is the case not having regx 3q
+            $delete_flag = 1;
+            $line_to_delete = $operation;
+        }
+    }
+} elsif ($command eq 's'){ # subsititute command
+    
+    if ($line_to_subs != -1 and $reg_flag{$command} != 1){
+        if ($line_to_subs == 0){
+            print("speed: command line: invalid command\n");
+            exit 0;
+        }else{
+            $subs_flag = 1;
+        }
+    }
+    if ($reg_flag{$command} != 1){
+        
+        @reg_chars = split("/", $option);
+        $len_of_reg = scalar @reg_chars;
+        $to_replace = $reg_chars[1];
+        if($len_of_reg == 3){
+            $replace_with = $reg_chars[2];
+        }elsif ($len_of_reg == 4){
+            $replace_with = $reg_chars[2];
+            $subs_g_flag = 1;
+        }
+    } else{
+        
+        @reg_chars = split("/", $option);
+        $len_of_reg = scalar @reg_chars;
+        $to_replace = $reg_chars[3];
+        if($len_of_reg == 5){
+            $replace_with = $reg_chars[4];
+        }elsif ($len_of_reg == 6){
+            $replace_with = $reg_chars[4];
+            $subs_g_flag = 1;
+        }
+
+    }
+    
+
+} else {
+    # happens when seq 1 5|2041 speed 3
+    print("speed: command line: invalid command\n");
+}
+
+$line_counter = 1;
+while ($line = <STDIN>){
+
+    if ($command eq 'q'){
+        if ($quit_counter_flag == 1 and $line_counter == $counter){
+            print($line);
+            exit 0;
+        }elsif ($reg_flag{$command} == 1 and $line =~ /$regx{$command}/){
+            print($line);
+            exit 0;
+        }
+    } elsif ($command eq 'p'){ # print command
+        if ($print_flag == 1){
+            if ($line_to_print == -1 or $line_to_print == $line_counter){
+                print($line);
+            }
+        }elsif($reg_flag{$command} == 1 and $line =~ /$regx{$command}/){
+            print($line);
+        }
+    } elsif ($command eq 'd'){ # delete command
+        if ($delete_flag == 1){
+            if ($line_to_delete == -1 or $line_to_delete == $line_counter){
+                $line_counter++;
+                next;
+            }
+        }elsif($reg_flag{$command} == 1 and $line =~ /$regx{$command}/){
+            $line_counter++;
+            next;
+        }
+    } elsif ($command eq 's'){
+        if ($subs_flag == 1){
+            
+            if ($line_to_subs == $line_counter){
+                if ($subs_g_flag == 1){
+                    $line =~ s/$to_replace/$replace_with/g;
+                }else{
+                    $line =~ s/$to_replace/$replace_with/;
+                }
+            }
+        }elsif ($reg_flag{$command} == 1 and $line =~ /$regx{$command}/){
+            
+            if ($subs_g_flag == 1){
+                $line =~ s/$to_replace/$replace_with/g;
+            }else{
+                $line =~ s/$to_replace/$replace_with/;
+            }
+        }elsif ($reg_flag{$command} != 1 and $subs_flag != 1){
+            if ($subs_g_flag == 1){
+                $line =~ s/$to_replace/$replace_with/g;
+            }else{
+                $line =~ s/$to_replace/$replace_with/;
+            }
+        }
+    }
+
+
+    # if ($quit_counter_flag == 1 and $print_counter == $counter){
+    #     print($line);
+    #     exit 0;
+    # }elsif ($reg_flag == 1 and $line =~ /$regx/){
+    #     print($line);
+    #     exit 0;
+    # }elsif ($print_flag == 1){
+    #     if ($line_to_print == -1 or $line_to_print == $print_counter){
+    #         print($line);
+    #     }
+    # }elsif ($delete_flag == 1){
+    #     if ($line_to_delete == -1 or $line_to_delete == $print_counter){
+    #         $print_counter++;
+    #         next;
+    #     }
+    # }
+    print($line);    
+    $line_counter++; 
+}
