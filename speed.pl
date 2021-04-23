@@ -1,17 +1,31 @@
 #!/usr/bin/perl -w
 
+
+sub get_delimitor{
+    my $command_argv = $_[0];
+    if ($command_argv =~  /(.*?)s(.{1})(.*)/){
+        my $my_delimitor = $2;
+        return $my_delimitor;
+        # if ($command_content =~ /s$delimiter.*$delimiter.*$delimiter/) {
+        #     print("yes it is a s commmand\n");
+        # }
+    }
+}
+
+
 # get Command type:
 # q,p,d,s
 sub get_command_type{
     my $command_argv = $_[0];
     my $command = '';
+    my $my_delimitor = $_[1];
     if ($command_argv =~ /q$/){
         $command = 'q';
     }elsif ($command_argv =~ /p$/){
         $command = 'p';
     }elsif ($command_argv =~ /d$/){
         $command = 'd';
-    }elsif ($command_argv =~ /s\/.*\/.*\//){
+    }elsif ($command_argv =~ /s$my_delimitor.*$my_delimitor.*$my_delimitor/){
         $command = 's';
     }
     return $command;
@@ -26,7 +40,10 @@ if ($argument_count == 1){
     $command_n = 1;
     $command_content = $ARGV[1];
 }
-$command_type = get_command_type($command_content);
+$s_delimitor = get_delimitor($command_content);
+$command_type = get_command_type($command_content, $s_delimitor);
+
+# print("delimitor: $s_delimitor  for $command_type\n");
 
 # function to check if it is in range for a command
 sub is_range{
@@ -43,7 +60,7 @@ sub extract_range{
 
     my $command = $_[0];
     my $command_argv = $_[1];
-    if ($command_argv =~ /(.+),(.+)${command}/){
+    if ($command_argv =~ /(.+),(.+?)${command}/){
         $part1 = $1;
         $part2 = $2;
         push @range_res, $part1;
@@ -79,10 +96,11 @@ sub get_subs_parts{
     my $subs_argv = $_[0];
     my $line_content = $_[1];
     # my $has_replaced = 0;
-    if ($subs_argv =~ /s\/(.*)\/(.*)\/(.*)/){
+    if ($subs_argv =~ /s[$s_delimitor]{1}(.*)[$s_delimitor]{1}(.*)[$s_delimitor]{1}(.*)/){
         $part1 = $1;
         $part2 = $2;
         $part3 = $3; 
+        # print("part1: $1, part2: $part2, part3: $part3\n");
         if ($part3 eq ''){
             $line_content =~ s/$part1/$part2/;
             # print("$line_content");
@@ -179,7 +197,9 @@ while ($line = <STDIN>){
         }else{
             if (is_matched($command_type, $command_content, $line, $.)){
                 next;
-            }
+            }elsif ($command_content eq $command_type){
+                next;
+            } 
         }
         
     }elsif ($command_type eq 's'){
@@ -193,7 +213,7 @@ while ($line = <STDIN>){
             # the range address is a non-greedy search
             if (is_matched($command_type, $start, $line, $.)){
                 # turn the trigger on if the line matches the start address
-                print("yes linenumber: $. from $start to $end \n");
+                # print("yes linenumber: $. from $start to $end \n");
                 if ($trigger == 0){
                     $trigger = 1;
                 }
@@ -202,26 +222,27 @@ while ($line = <STDIN>){
                 # we replace this line
                 if ($trigger == 1){
                     $trigger = 0;
-                    if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+                    if ($command_content =~ /(.*)(s$s_delimitor.*$s_delimitor.*$s_delimitor.*)/){
                         $replace_part = $2;
                         $line = get_subs_parts($replace_part, $line);
                     }
                 }
                 
             }
-
             # the trigger is one
             # we need to replace all the lines in between
             if ($trigger == 1){
-                if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+                if ($command_content =~ /(.*)(s$s_delimitor.*$s_delimitor.*$s_delimitor.*)/){
                     $replace_part = $2;
                     $line = get_subs_parts($replace_part, $line);
                 }
             }
         }else{
-            if ($command_content =~ /(.*)(s\/.*\/.*\/.*)/){
+            if ($command_content =~ /(.*?)(s$s_delimitor.*$s_delimitor.*$s_delimitor.*)/){
                 $address_part = $1;
                 $replace_part = $2;
+                # print("address part: $address_part \n");
+                # print("replace part: $replace_part \n");
                 if ($address_part eq ''){
                     $line = get_subs_parts($replace_part, $line);
                 }elsif (is_matched($command_type, $address_part, $line, $.)){
@@ -250,7 +271,7 @@ if ($command_type eq 'p'){
     }
 }elsif ($command_type eq 's'){
 
-    if ($command_content =~ /(^\$)(s\/.*\/.*\/.*)/){
+    if ($command_content =~ /(^\$)(s$s_delimitor.*$s_delimitor.*$s_delimitor.*)/){
         $replace_part = $2;
         $line = get_subs_parts($replace_part, $line);
         
