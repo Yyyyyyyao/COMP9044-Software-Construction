@@ -1,73 +1,61 @@
 #!/usr/bin/perl -w
 
-# function to check if it is in range for a command
-sub is_range{
-    my $command = $_[0];
-    my $command_argv = $_[1];
-    if ($command_argv =~ /(.*)+,(.*)+${command}/){
-        return 1;
+# Check if the command include -n flag
+$command_n = 0;
+$command_f = 0;
+$argument_count = scalar(@ARGV);
+if ($argument_count == 1){
+    $command_content = $ARGV[0];
+}elsif ($argument_count == 2){
+    if ($ARGV[0] eq '-n'){
+        $command_n = 1;
+        $command_content = $ARGV[1];
+    }elsif ($ARGV[0] eq '-f'){
+        $command_f = 1;
+        $command_file_name = $ARGV[1];
+        open my $f, '<', $command_file_name or die "Can not open $command_file_name: $!";
+        while (my $command_file_line = <$f>) {
+            $command_content .= $command_file_line;
+        }
+        close $f;
+    }else{
+        $command_content = $ARGV[0];
+        push @input_file_names, $ARGV[1];
     }
-    return 0;
-}
+}elsif ($argument_count >= 3){
+    if ($ARGV[0] eq '-n'){
+        $command_n = 1;
+        if ($ARGV[1] eq '-f'){
+            $command_f = 1;
+            $command_file_name = $ARGV[2];
+            open my $f, '<', $command_file_name or die "Can not open $command_file_name: $!";
+            while (my $command_file_line = <$f>) {
+                $command_content .= $command_file_line;
+            }
+            close $f;
+            @input_file_names = @ARGV[3..$#ARGV];
+        }else{
+            $command_content = $ARGV[1];
+            @input_file_names = @ARGV[2..$#ARGV];
+        }
+    }elsif ($ARGV[0] eq '-f'){
+        $command_f = 1;
+        $command_file_name = $ARGV[1];
+        open my $f, '<', $command_file_name or die "Can not open $command_file_name: $!";
+        while (my $command_file_line = <$f>) {
+            $command_content .= $command_file_line;
+        }
+        close $f;
+        @input_file_names = @ARGV[2..$#ARGV];
+        
+    }else{
+        $command_content = $ARGV[0];
+        @input_file_names = @ARGV[1..$#ARGV];
 
-# function to extract range
-sub extract_range{
-
-    my $command = $_[0];
-    my $command_argv = $_[1];
-    if ($command_argv =~ /(.+),(.+?)${command}/){
-        $part1 = $1;
-        $part2 = $2;
-        push @range_res, $part1;
-        push @range_res, $part2;
-        return @range_res;
     }
+}else{
+    print ("usage: speed.pl [-i] [-n] [-f <script-file> | <sed-command>] [<files>...]\n");
 }
 
 
-$command_content = $ARGV[0];
-# @command_content_breaked = split('', $command_content);
-
-if ($command_content =~  /(.*?)s(.{1})(.*)/){
-    print("$1, $2, $3 \n");
-    $delimiter = $2;
-    if ($command_content =~ /s$delimiter.*$delimiter.*$delimiter/) {
-        print("yes it is a s commmand\n");
-    }
-}
-
-if (is_range('s', $command_content)) {
-    print("yes it is a range \n");
-    @output = extract_range('s', $command_content);
-    $start = shift @output;
-    $end = shift @output;
-    print("from $start to $end\n");
-}
-
-
-
-# if ($command_content_breaked[-1] eq 'g' ){
-
-    
-#     if ($command_content_breaked[-2] eq 'g'){
-#         # situation 1: 'sg[ae]gzzzgg'  delimiter: g and having g flag
-
-#     }elsif ($command_content_breaked[-2] ne 'g'){
-#         # situation 2: 'sg[ae]gzzzg'   delimiter:g and no g flag
-#         # Noted: delimiter not appear in the content
-#     }
-
-    
-#     # echo sgner sg| 2041 speed 'sXsgXzgXg'
-
-#     # situation 3: 'sX[ae]XzzzXg' delimiter: NOT g and having g flag
-
-#     $delimitor =  $command_content_breaked[-2];
-# }else{ 
-#     # situation 3: 'sX[ae]XzzzX' delimiter: NOT g and no g flag
-#     $delimitor =  $command_content_breaked[-1];
-    
-# }
-
-
-
+print("n: $command_n => f: $command_f  => command: $command_content => input files: @input_file_names\n");
