@@ -1,0 +1,68 @@
+#!/bin/dash
+
+# check whether git-init exists
+add_repo="./.girt/girt_add"
+if ! [ -d "$add_repo" ]
+then
+	echo "girt-add: error: girt repository directory .girt not found"
+	exit 1
+fi
+
+# update filename status in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done
+
+# when no arguments passed in
+# Print usage error
+if test $# -eq '0'
+then
+	echo "usage: girt-add <filenames>"
+	exit 1
+fi
+
+add_file_path="./.girt/girt_add/"
+
+# copy all the files in the current directory 
+# into the index
+# which are stored in girt_add directory
+
+# do the checking first
+# because i may need to abort all the add if a file does not exist
+# for example, a exists, b not exists
+# girt-add a b => it will not add a into the index
+for filename in $@
+do
+	if ! [ -e "$filename" ]
+	then
+		if ! [ -e "${add_file_path}/$filename" ]
+		then
+			echo "girt-add: error: can not open '$filename'"
+			exit 1
+		fi
+	fi
+done
+
+# add file to the index
+for filename in $@
+do
+	if ! [ -e "$filename" ]
+	then
+		if [ -e "${add_file_path}/$filename" ]
+		then 
+			# this means index has file, local does not have file
+			# when doing girt-add, we need to delete the file from index
+			rm "./.girt/girt_add/$filename"
+		fi
+	else
+		# copy file from local to index
+		cp "$filename" "${add_file_path}$filename"
+	fi
+done

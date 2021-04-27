@@ -1,0 +1,38 @@
+#!/bin/dash
+
+repo_name=".girt"
+
+# To see whether the .girt directory is existed
+if test -d "$repo_name"
+then
+	echo "girt-init: error: .girt already exists"
+	exit 1
+fi
+
+# if not existed, create .girt
+mkdir "$repo_name"
+echo "Initialized empty girt repository in .girt"
+
+# create girt_add under .girt 
+# for future use of girt-add
+girt_add_repo="./.girt/girt_add"
+mkdir "$girt_add_repo"
+
+# create log file 
+# for future use of girt-log
+touch ./.girt/.git_log
+
+# create status file 
+# for future use of girt-status to track all the files
+touch ./.girt/.git_status
+# update filenames in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done

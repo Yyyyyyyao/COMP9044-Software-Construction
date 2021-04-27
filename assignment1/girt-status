@@ -1,0 +1,120 @@
+#!/bin/dash
+
+#Check if the ./girt-init has been done
+if ! [ -d "./.girt" ]
+then
+	echo "girt-status: error: girt repository directory .girt not found"
+	exit 1
+fi
+
+# update filenames in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done
+
+
+# get the latest repo
+commit_prefix="./.girt/"
+commit_repo="girt_commit"
+commit_prv_index=0
+commit_index=0
+new_commit_repo="${commit_prefix}${commit_repo}.$commit_index"
+while test -e "$new_commit_repo"
+do
+	commit_prv_index=$commit_index
+	commit_index=$(($commit_index+1))
+	new_commit_repo="${commit_prefix}${commit_repo}.$commit_index"
+done
+
+last_commit_repo="./.girt/girt_commit.$commit_prv_index"
+
+
+sort ./.girt/.git_status |
+while read -r file
+do
+	
+	if [ -e "$file" ] # if the file exist in the local repo <=> local has
+	then
+		if ! [ -e "./.girt/girt_add/$file" ] # if the file does not exist in the index repo <=> local has, index miss
+		then
+			if ! [ -e "${last_commit_repo}/$file" ] # if the file does not exist in the last commit repo <=> local has, index miss, commit miss
+			then
+				echo "$file - untracked"
+			else # if the file exist in the last commit repo <=> local has, index miss, commit has
+				echo "$file - untracked"
+			fi
+		else # if the file exist in the index repo <=> local has, index has
+			if ! [ -e "${last_commit_repo}/$file" ] # if the file does not exist in the last commit repo <=> local has, index has, commit miss
+			then
+				diff_local_index=$(diff "$file" "./.girt/girt_add/$file")
+				if [ "$diff_local_index" = "" ]
+				then
+					echo "$file - added to index"
+				else
+					echo "$file - added to index, file changed"
+				fi
+			else # if the file exist in the last commit repo <=> local has, index has, commit has
+				diff_local_index=$(diff "$file" "./.girt/girt_add/$file")
+				diff_index_commit=$(diff "./.girt/girt_add/$file" "${last_commit_repo}/$file")
+				diff_local_commit=$(diff "$file" "${last_commit_repo}/$file")
+				# local = index = commit
+				if [ "$diff_local_index" = "" -a "$diff_index_commit" = "" ]
+				then
+					echo "$file - same as repo"
+				elif [ "$diff_local_index" != "" -a "$diff_index_commit" = "" ]
+				then
+					# local != index = commit
+					echo "$file - file changed, changes not staged for commit"
+
+				elif [ "$diff_local_index" = "" -a "$diff_index_commit" != "" ]
+				then
+					# local = index != commit
+					echo "$file - file changed, changes staged for commit"
+
+				elif [ "$diff_local_commit" = "" -a "$diff_index_commit" != "" ]
+				then
+					# local = commit != index
+					echo "Unknown local = commit != index, $file - untracked"
+
+				elif [ "$diff_local_index" != "" -a "diff_index_commit" != "" -a "$diff_local_commit" != "" ]
+				then
+					# local != index != commit
+					echo "$file - file changed, different changes staged for commit"
+				fi
+
+			fi
+		fi
+	else # if the file does not exist in the local repo
+		if ! [ -e "./.girt/girt_add/$file" ] # if the file does not exist in the index repo <=> local miss, index miss
+		then
+			if ! [ -e "${last_commit_repo}/$file" ] # if the file does not exist in the last commit repo <=> local miss, index miss, commit miss
+			then
+				continue
+			else # if the file exist in the last commit repo <=> local miss, index miss, commit has
+				echo "$file - deleted"
+			fi
+		else # if the file exist in the index repo <=> local miss, index has
+			if ! [ -e "${last_commit_repo}/$file" ] # if the file does not exist in the last commit repo <=> local miss, index has, commit miss
+			then
+				echo "$file - added to index, file deleted"
+			else # if the file exist in the last commit repo <=> local miss, index has, commit has
+				diff_index_commit=$(diff "./.girt/girt_add/$file" "${last_commit_repo}/$file")
+				if [ "$diff_index_commit" = "" ]
+				then
+					# local miss, index = commit
+					echo "$file - file deleted"
+				else
+					# local miss, index != commit
+					echo "$file - file deleted, different changes staged for commit"
+				fi
+			fi
+		fi
+	fi
+done

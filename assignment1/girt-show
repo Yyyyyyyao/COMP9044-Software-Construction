@@ -1,0 +1,84 @@
+#!/bin/dash
+
+# Check if the girt-init has been done
+if ! [ -d "./.girt" ]
+then
+	echo "girt-show: error: girt repository directory .girt not found"
+	exit 1
+fi
+
+# update filenames in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done
+
+# Check Usage error
+if test $# -eq '0'
+then
+	echo "usage: girt-show <commit>:<filename>"
+	exit 1
+fi
+
+# for the case 
+# girt-show 1
+# which does not contain ":"
+# should print invalid object
+commit_index=$(echo "$1" | cut -d':' -f1)
+
+if [ "$commit_index" = "$1" ]
+then
+	echo "girt-show: error: invalid object $1"
+	exit 1
+fi
+
+# for the case 
+# girt-show 1:
+# should print invalid filename
+file_name=$(echo "$1" | cut -d':' -f2)
+if [ "$file_name" = "" ]
+then
+	echo "girt-show: error: invalid filename ''"
+	exit 1
+fi
+
+commit_prefix="./.girt/"
+commit_repo="girt_commit"
+
+
+# Show the file content in the index
+# for case like girt-show :a
+if [ "$commit_index" = '' ]
+then
+	cd "./.girt/girt_add"
+	if ! [ -e "$file_name" ]
+	then
+		echo "girt-show: error: '$file_name' not found in index"
+		exit 1
+	fi
+	cat "$file_name"
+else
+	# if the commit does not exist,
+	# print error msg and exit
+	if ! [ -d  "${commit_prefix}${commit_repo}.$commit_index" ]
+	then
+		echo "girt-show: error: unknown commit '$commit_index'"
+		exit 1
+	fi
+	cd "${commit_prefix}${commit_repo}.$commit_index"
+
+	# if the file does not exist in that commit, 
+	# print error msg and exit
+	if ! [ -e "$file_name" ]
+	then
+		echo "girt-show: error: '$file_name' not found in commit $commit_index"
+		exit 1
+	fi
+	cat "$file_name"
+fi

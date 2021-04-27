@@ -1,0 +1,384 @@
+#!/bin/dash
+
+# Check if the girt-init has been done
+if ! [ -d "./.girt" ]
+then
+	echo "girt-rm: error: girt repository directory .girt not found"
+	exit 1
+fi
+
+# update filenames in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done
+
+# Check usage errors
+if test $# -eq '0'
+then
+	echo "usage: girt-rm [--force] [--cached] <filenames>"
+	exit 1
+elif test $# -eq '1'
+then 
+	if [ "$1" = '--force' -o "$1" = '--cached' ]
+	then
+		echo "usage: girt-rm [--force] [--cached] <filenames>"
+		exit 1
+	fi
+elif test $# -eq '2'
+then
+	if [ "$1" = '--force' -a "$2" = '--cached' ]
+	then
+		echo "usage: girt-rm [--force] [--cached] <filenames>"
+		exit 1
+	fi
+fi
+
+# Find the last commit repo
+commit_prefix="./.girt/"
+commit_repo="girt_commit"
+commit_prv_index=0
+commit_index=0
+new_commit_repo="${commit_prefix}${commit_repo}.$commit_index"
+while test -e "$new_commit_repo"
+do
+	commit_prv_index=$commit_index
+	commit_index=$(($commit_index+1))
+	new_commit_repo="${commit_prefix}${commit_repo}.$commit_index"
+done
+
+last_commit_repo="./.girt/girt_commit.$commit_prv_index"
+
+
+for filename in $@
+do
+	if [ -e "$filename" ]
+	then
+		if [ "$1" = '--force' ] # if the format is girt-rm --force
+		then
+			if [ "$2" = '--cached' ] # if the format is girt-rm --force --cached
+			then
+				# only delete file in index
+				# without any error msg
+				if [ -e "./.girt/girt_add/$filename" ]
+				then
+					# the reason I use continue is that
+					# when the girt-rm meet an error, the whole operation should be abort
+					# for example, 
+					# a is the same at local, index and latest commit
+					# b is an non-exist file 
+					# when running girt-rm a b
+					# a should not be removed because b cannot be removed 
+					# the whole operation should be abort
+					# I continue at here and remove after I confirm there is no errors
+
+					continue # rm "./.girt/girt_add/$filename"
+					
+				else # girt-rm --force --cached and file not exist at index
+					echo "girt-rm: error: '$filename' is not in the girt repository"
+					exit 1
+				fi
+			else 
+				# girt-rm --force, delete files in both local and index
+				if [ -e "./.girt/girt_add/$filename" ]
+				then
+					# rm "./.girt/girt_add/$filename"
+					# rm "./$filename"
+					continue
+				else # girt-rm --force, file in local but not in index, should report error
+					echo "girt-rm: error: '$filename' is not in the girt repository"
+					exit 1
+				fi	
+				
+			fi
+		elif [ "$1" = '--cached' ] # girt-rm --cached
+		then
+			# only delete files in index
+			# showing errors in possible
+			if ! [ -e "./.girt/girt_add/$filename" ]
+			then
+				# local has the file
+				# index and commit do not have the file
+				echo "girt-rm: error: '$filename' is not in the girt repository"
+				exit 1
+			else
+				if ! [ -e "${last_commit_repo}/$filename" ] # index has file, last commit does not have files
+				then
+					continue # rm "./.girt/girt_add/$filename"
+					
+				else
+					# local, index and commit all have file exist
+					diff_local_index=$(diff "$filename" "./.girt/girt_add/$filename")
+					diff_index_commit=$(diff "./.girt/girt_add/$filename" "${last_commit_repo}/$filename")
+					diff_local_commit=$(diff "$filename" "${last_commit_repo}/$filename")
+					# local = index = commit
+					if [ "$diff_local_index" = "" -a "$diff_index_commit" = "" ]
+					then
+						continue # rm "./.girt/girt_add/$filename"
+						
+					elif [ "$diff_local_index" != "" -a "$diff_index_commit" = "" ]
+					then
+						# local != index = commit
+						# girt-rm --cached only delete in index
+						continue # rm "./.girt/girt_add/$filename"
+
+					elif [ "$diff_local_index" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = index != commit
+						# girt-rm --cached only delete in index
+						continue # rm "./.girt/girt_add/$filename"
+					elif [ "$diff_local_commit" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = commit != index
+						echo "local = commit != index"
+						exit 1
+					elif [ "$diff_local_index" != "" -a "diff_index_commit" != "" -a "$diff_local_commit" != "" ]
+					then
+						# local != index != commit
+						echo "girt-rm: error: '$filename' in index is different to both to the working file and the repository"
+						exit 1
+					fi
+				fi
+			fi
+		else
+			# just girt-rm 
+			# delete files but with error warnings
+			if ! [ -e "./.girt/girt_add/$filename" ]
+			then
+				# local has the file
+				# index does not have the file
+				echo "girt-rm: error: '$filename' is not in the girt repository"
+				exit 1
+			else
+				if ! [ -e "./.girt/girt_add/$filename" ]
+				then
+					diff_local_index="1" # if local has file, index does not have file, of course it is different
+				else
+					diff_local_index=$(diff "$filename" "./.girt/girt_add/$filename")
+				fi
+
+				if ! [ -e "${last_commit_repo}/$filename" ]
+				then
+					diff_local_commit="1" # if local has file, commit does not have file, difference exist
+					if ! [ -e "./.girt/girt_add/$filename" ]
+					then
+						diff_index_commit="" # both commit and index does not have file, they are the same
+					else
+						diff_index_commit="1"
+					fi
+				else
+					if ! [ -e "./.girt/girt_add/$filename" ]
+					then
+						diff_index_commit="1" # index does not have file, commit has file, different
+					else
+						diff_index_commit=$(diff "./.girt/girt_add/$filename" "${last_commit_repo}/$filename")
+					fi
+					diff_local_commit=$(diff "$filename" "${last_commit_repo}/$filename")
+				fi
+
+				if [ "$diff_local_index" = "" -a "$diff_index_commit" = "" ]
+				then
+					# local = index = commit
+					# rm "./.girt/girt_add/$filename"
+					# rm "./$filename"
+					continue
+
+				elif [ "$diff_local_index" != "" -a "$diff_index_commit" = "" ]
+				then
+					# local != index = commit
+					echo "girt-rm: error: '$filename' in the repository is different to the working file"
+					exit 1
+				elif [ "$diff_local_index" = "" -a "$diff_index_commit" != "" ]
+				then
+					# local = index != commit
+					echo "girt-rm: error: '$filename' has staged changes in the index"
+					exit 1
+				elif [ "$diff_local_commit" = "" -a "$diff_index_commit" != "" ]
+				then
+					# local = commit != index
+					echo "local = commit != index"
+					exit 1
+				elif [ "$diff_local_index" != "" -a "diff_index_commit" != "" -a "$diff_local_commit" != "" ]
+				then
+					# local != index != commit
+					echo "girt-rm: error: '$filename' in index is different to both to the working file and the repository"
+					exit 1
+				fi
+			fi
+		fi
+	else
+		# if file does not exist at local
+		if [ "$filename" = '--cached' -o "$filename" = '--force' ]
+		then
+			# i need escape the --cached and --force
+			# otherwise, they will be seen as filename
+			continue
+		fi
+		if [ "$1" = '--force' ]
+		then
+			if [ "$2" = '--cached' ]
+			then
+				# girt-rm --force --cached only delete file in index
+				# without any error msg
+				if [ -e "./.girt/girt_add/$filename" ]
+				then
+					continue # rm "./.girt/girt_add/$filename"
+				else
+					echo "girt-rm: error: '$filename' is not in the girt repository"
+					exit 1
+				fi
+			else
+				# delete files in both local and index
+				if [ -e "./.girt/girt_add/$filename" ]
+				then
+					continue # rm "./.girt/girt_add/$filename"
+				else
+					echo "girt-rm: error: '$filename' is not in the girt repository"
+					exit 1
+				fi	
+			fi
+		elif [ "$1" = '--cached' ]
+		then
+			# girt-rm --cached only delete files in index
+			# showing errors in possible
+			if ! [ -e "./.girt/girt_add/$filename" ]
+			then
+				# index does not have the file
+				echo "girt-rm: error: '$filename' is not in the girt repository"
+				exit 1
+			else
+				if ! [ -e "${last_commit_repo}/$filename" ]
+				then
+					continue # rm "./.girt/girt_add/$filename"
+				else
+					diff_local_index="1" # local miss file; index has file
+					diff_local_commit="1" # local miss file; commit has file
+					diff_index_commit=$(diff "./.girt/girt_add/$filename" "${last_commit_repo}/$filename")
+					# local = index = commit
+					if [ "$diff_local_index" = "" -a "$diff_index_commit" = "" ]
+					then
+						continue # rm "./.girt/girt_add/$filename"
+					elif [ "$diff_local_index" != "" -a "$diff_index_commit" = "" ]
+					then
+						# local != index = commit
+						# only delete in index
+						# echo "girt-rm: error: '$filename' in the repository is different to the working file"
+						# exit 1
+						continue # rm "./.girt/girt_add/$filename"
+					elif [ "$diff_local_index" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = index != commit
+						# only delete in index
+						# echo "girt-rm: error: '$filename' has staged changes in the index"
+						# exit 1
+						continue # rm "./.girt/girt_add/$filename"
+					elif [ "$diff_local_commit" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = commit != index
+						echo "local = commit != index"
+						exit 1
+					elif [ "$diff_local_index" != "" -a "diff_index_commit" != "" -a "$diff_local_commit" != "" ]
+					then
+						# local != index != commit
+						echo "girt-rm: error: '$filename' in index is different to both to the working file and the repository"
+						exit 1
+					fi
+				fi
+			fi
+		else
+			# delete files but with error warnings
+			if ! [ -e "./.girt/girt_add/$filename" ]
+			then
+				# index does not have the file
+				echo "girt-rm: error: '$filename' is not in the girt repository"
+				exit 1
+			else
+				if ! [ -e "${last_commit_repo}/$filename" ]
+				then
+					continue # rm "./.girt/girt_add/$filename"
+				else
+					diff_local_index="1" # local miss, index has file
+					diff_index_commit=$(diff "./.girt/girt_add/$filename" "${last_commit_repo}/$filename")
+					diff_local_commit="1"
+					if [ "$diff_local_index" = "" -a "$diff_index_commit" = "" ]
+					then
+						# local = index = commit
+						# rm "./.girt/girt_add/$filename"
+						# rm "./$filename"
+
+						continue
+					elif [ "$diff_local_index" != "" -a "$diff_index_commit" = "" ]
+					then
+						# local != index = commit
+						echo "girt-rm: error: '$filename' in the repository is different to the working file"
+						exit 1
+					elif [ "$diff_local_index" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = index != commit
+						echo "girt-rm: error: '$filename' has staged changes in the index"
+						exit 1
+					elif [ "$diff_local_commit" = "" -a "$diff_index_commit" != "" ]
+					then
+						# local = commit != index
+						echo "local = commit != index"
+						exit 1
+					elif [ "$diff_local_index" != "" -a "diff_index_commit" != "" -a "$diff_local_commit" != "" ]
+					then
+						# local != index != commit
+						echo "girt-rm: error: '$filename' in index is different to both to the working file and the repository"
+						exit 1
+					fi
+				fi
+			fi
+		fi
+	fi
+done
+
+
+# Because i have checked the all operation in the above for loop
+# when it comes to here
+# it means all the files in the girt-rm can be removed accordingly. 
+for filename in $@
+do
+	if [ -e "$filename" ]
+	then
+		if [ "$1" = '--force' ]
+		then
+			if [ "$2" = '--cached' ]
+			then
+				rm "./.girt/girt_add/$filename"
+			else
+				rm "./.girt/girt_add/$filename"
+				rm "./$filename"
+			fi
+		elif [ "$1" = '--cached' ]
+		then
+			rm "./.girt/girt_add/$filename"
+		else
+			rm "./.girt/girt_add/$filename"
+			rm "./$filename"
+		fi
+
+	else # not in local
+		if [ "$filename" = '--cached' -o "$filename" = '--force' ]
+		then
+			continue
+		fi
+		rm "./.girt/girt_add/$filename"
+	fi
+done
+
+
+
+
+
+
+
+
+

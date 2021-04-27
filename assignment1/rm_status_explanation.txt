@@ -1,0 +1,31 @@
+local != index = commit
+girt-rm: error: 'q2' in the repository is different to the working file
+c - file changed, changes not staged for commit
+
+local == index != commit
+girt-rm: error: 'q2' has staged changes in the index
+b - file changed, changes staged for commit
+
+local != index != commit
+girt-rm: error: 'q2' in index is different to both to the working file and the repository
+a - file changed, different changes staged for commit
+
+local has, index miss, commit miss
+girt-rm: error: 'q2' is not in the girt repository
+
+local miss > index has > commit has
+d - file deleted
+
+local miss > index miss > commit has
+e - deleted
+
+local = index = commit:
+girt-rm no error 
+girt-status: f - same as repo
+
+
+local = index, commit miss  (local and index have g)
+g - added to index
+
+local has, index miss, commit miss 
+h - untracked

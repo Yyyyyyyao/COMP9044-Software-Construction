@@ -1,8 +1,0 @@
-Date			Start		Stop		Activity		Comments	
-15/04/21			12:00		15:00		Coding		implement on Subset0
-19/04/21			13:00		16:00		Coding		implement on Subset0 (Finished)
-21/04/21			12:00		13:30		Debug		-n command (Finished)
-22/04/21			12:00		16:00		Coding		implement on Subset1 (Finished by Address and some tests on delimiter problem)
-23/04/21			12:00		13:00		Coding		Subset 1 - s substitute command (Finished)
-24/04/21            10:00       17:11       Coding & Debug  Passed all the tests in Subset 0&1
-

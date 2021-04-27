@@ -1,0 +1,32 @@
+#!/bin/dash
+
+if ! [ -d "./.girt" ]
+then
+	echo "girt-log: error: girt repository directory .girt not found"
+	exit 1
+fi
+
+# update filenames in .girt_status
+for file in *
+do
+	grab=$(egrep "^$file$" ./.girt/.git_status)
+	if [ "$grab" = "" ]
+	then
+		echo "$file" >> ./.girt/.git_status
+	else
+		continue
+	fi
+done
+
+# if user pass argument to girt-log
+# print usage error
+if test $# -gt '0'
+then
+	echo "usage: girt-log"
+	exit 1
+fi
+
+log_file="./.girt/.git_log"
+
+# reverse print lines in .girt_log
+tac "$log_file" | cat
