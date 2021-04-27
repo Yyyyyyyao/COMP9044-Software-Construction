@@ -22,6 +22,10 @@ Implement similar operations:
 * girt-rm [--force] [--cached] filenames...
 * girt-status
 
+### **Runing code**
+Example:
+> ./girt-init
+> ./girt-add [filenames]
 
 ## **Assignment 2 - Implement sed using Perl**
 ### Inroduction 
@@ -41,6 +45,11 @@ Implement similar operations:
 
 ##### **Key ideas**
 * similar to Sed in linux
+
+### **Runing code**
+Example:
+> seq 1 5 | ./speed.pl '5d' 
+> ./speed.pl -n -f CommandFile inputfile1 inputfile2 ...
 
 
 
