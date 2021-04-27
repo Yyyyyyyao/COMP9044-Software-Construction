@@ -25,6 +25,7 @@ Implement similar operations:
 ### **Runing code**
 Example:
 > ./girt-init
+
 > ./girt-add [filenames]
 
 ## **Assignment 2 - Implement sed using Perl**
@@ -49,6 +50,7 @@ Example:
 ### **Runing code**
 Example:
 > seq 1 5 | ./speed.pl '5d' 
+
 > ./speed.pl -n -f CommandFile inputfile1 inputfile2 ...
 
 
